@@ -45,6 +45,9 @@ def load_encodings():
 def save_encodings(data):
     with open(ENCODINGS_PATH, "wb") as f:
         pickle.dump(data, f)
+@app.route("/")
+def home():
+    return "Backend is Online!"
 
 @app.route("/register", methods=["POST"])
 def register():

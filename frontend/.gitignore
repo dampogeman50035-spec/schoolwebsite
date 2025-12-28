@@ -21,3 +21,13 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+.env
+__pycache__/
+*.pyc
+venv/
+backend/venv/
+node_modules/
+
+.vercel

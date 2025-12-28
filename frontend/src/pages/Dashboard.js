@@ -9,7 +9,7 @@ export default function Dashboard() {
   // Fetch dashboard stats
   const loadStats = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:5000/stats");
+      const res = await fetch("https://keshia-hyperemic-jamison.ngrok-free.dev/stats");
       const data = await res.json();
       setStats(data);
     } catch (err) {
