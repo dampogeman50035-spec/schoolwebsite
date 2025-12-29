@@ -4,7 +4,7 @@ export default function Admin() {
   const [students, setStudents] = useState([]);
 
   const load = () => {
-    fetch("http://localhost:3000/students")
+    fetch("http://127.0.0.1:5000/students")
       .then((r) => r.json())
       .then((data) => setStudents(data))
       .catch((err) => console.error(err));
@@ -23,7 +23,7 @@ export default function Admin() {
       return;
     try {
       const res = await fetch(
-        `http://localhost:3000/admin/delete_student/${id}`,
+        `http://127.0.0.1:5000/admin/delete_student/${id}`,
         { method: "DELETE" }
       );
       const data = await res.json();
@@ -36,7 +36,7 @@ export default function Admin() {
   return (
     <div className="animate-in">
       <header style={{ marginBottom: "30px" }}>
-        <h1 style={{ fontSize: "2.5rem", margin: 0 }}>
+        <h1 style={{ fontSize: "2.5rem", margin: 0, textAlign: "center" }}>
           System <span style={{ color: "var(--secondary)" }}>Management</span>
         </h1>
         <p className="status">Database Administration & User Control</p>

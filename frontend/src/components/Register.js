@@ -35,7 +35,7 @@ function Register() {
 
     try {
       // Pointing to your LOCAL backend
-      const res = await fetch("http://localhost:3000/register", {
+      const res = await fetch("http://127.0.0.1:5000/register", {
         method: "POST",
         body: formData,
       });
