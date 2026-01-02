@@ -4,6 +4,7 @@ import face_recognition
 import sqlite3
 import os
 import pickle
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app) 
@@ -29,34 +30,26 @@ def init_db():
         )
     """)
     
-    # 2. Initialize Attendance Table
+    # 2. Initialize Attendance Table - Using Localtime default
     cur.execute("""
         CREATE TABLE IF NOT EXISTS attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             student_id_internal INTEGER,
             name TEXT,
             location TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
         )
     """)
 
-    # --- THE FIX: MANUAL COLUMN SYNC ---
-    # Check students table
+    # --- COLUMN SYNC ---
     cur.execute("PRAGMA table_info(students)")
     s_cols = [col[1] for col in cur.fetchall()]
-    if "student_id_number" not in s_cols:
-        cur.execute("ALTER TABLE students ADD COLUMN student_id_number TEXT")
-    if "section" not in s_cols:
-        cur.execute("ALTER TABLE students ADD COLUMN section TEXT")
-    if "grade_level" not in s_cols:
-        cur.execute("ALTER TABLE students ADD COLUMN grade_level TEXT")
+    for col_name in ["student_id_number", "section", "grade_level"]:
+        if col_name not in s_cols:
+            cur.execute(f"ALTER TABLE students ADD COLUMN {col_name} TEXT")
 
-    # Check attendance table (Fixes the student_id_internal error)
     cur.execute("PRAGMA table_info(attendance)")
     a_cols = [col[1] for col in cur.fetchall()]
-    
-    # If the old column name exists, or the new one is missing, we reset the table
-    # This ensures your SQL queries in /attendance and /face_login don't crash
     if "student_id_internal" not in a_cols:
         print("Mismatched database detected. Fixing attendance table...")
         cur.execute("DROP TABLE IF EXISTS attendance")
@@ -66,7 +59,7 @@ def init_db():
                 student_id_internal INTEGER,
                 name TEXT,
                 location TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
             )
         """)
     
@@ -75,7 +68,6 @@ def init_db():
 
 init_db()
 
-# ... (load_encodings and save_encodings remain unchanged) ...
 def load_encodings():
     if not os.path.exists(ENCODINGS_PATH):
         return []
@@ -98,7 +90,8 @@ def register():
         return jsonify({"success": False, "message": "Missing required fields"})
 
     image = face_recognition.load_image_file(file)
-    encodings = face_recognition.face_encodings(image)
+    # Using num_jitters=1 here ensures the 'master' encoding is high quality
+    encodings = face_recognition.face_encodings(image, num_jitters=1)
 
     if len(encodings) == 0:
         return jsonify({"success": False, "message": "No face detected"})
@@ -136,7 +129,8 @@ def face_login():
         return jsonify({"success": False, "message": "No image provided"})
 
     image = face_recognition.load_image_file(file)
-    encodings = face_recognition.face_encodings(image)
+    # num_jitters=1 makes it scan more carefully to increase accuracy
+    encodings = face_recognition.face_encodings(image, num_jitters=1)
 
     if len(encodings) == 0:
         return jsonify({"success": False, "message": "No face detected"})
@@ -145,13 +139,19 @@ def face_login():
     students = load_encodings()
 
     for student in students:
-        match = face_recognition.compare_faces([student["encoding"]], input_encoding)[0]
+        # tolerance=0.5 makes it stricter (0.6 is default). 
+        # Lower this to 0.45 if you still get false positives.
+        match = face_recognition.compare_faces([student["encoding"]], input_encoding, tolerance=0.5)[0]
+        
         if match:
+            # Generate exact local time for the log
+            local_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
             conn = sqlite3.connect(DB_PATH)
             cur = conn.cursor()
             cur.execute(
-                "INSERT INTO attendance (student_id_internal, name, location) VALUES (?, ?, ?)",
-                (student["id"], student["name"], location)
+                "INSERT INTO attendance (student_id_internal, name, location, timestamp) VALUES (?, ?, ?, ?)",
+                (student["id"], student["name"], location, local_now)
             )
             conn.commit()
             conn.close()
@@ -159,7 +159,8 @@ def face_login():
                 "success": True, 
                 "name": student["name"],
                 "student_id": student.get("student_id_num"),
-                "location": location
+                "location": location,
+                "time": local_now
             })
     return jsonify({"success": False, "message": "Face not recognized"})
 
@@ -167,7 +168,6 @@ def face_login():
 def get_attendance():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    # Pulls section and ID info using the internal join
     cur.execute("""
         SELECT a.name, s.student_id_number, s.section, a.location, a.timestamp 
         FROM attendance a
@@ -179,6 +179,8 @@ def get_attendance():
     return jsonify([{
         "name": r[0], "student_id": r[1], "section": r[2], "location": r[3], "timestamp": r[4]
     } for r in rows])
+
+# ... (stats and students routes remain the same) ...
 
 @app.route("/stats")
 def get_stats():
