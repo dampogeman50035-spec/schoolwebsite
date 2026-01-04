@@ -126,3 +126,86 @@ body {
   cursor: pointer;
   transition: opacity 0.2;
 }
+/* Mobile Burger Button - Hidden on Desktop */
+.menu-burger {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--text-color);
+  margin-left: 10px;
+}
+
+/* Tablet & Mobile Layout */
+@media (max-width: 900px) {
+  .menu-burger {
+    display: block;
+  }
+
+  .nav-links {
+    display: none; /* Hide links by default on mobile */
+    position: absolute;
+    top: 70px; /* Adjust based on navbar height */
+    left: 0;
+    width: 100%;
+    flex-direction: column;
+    background: var(--nav-bg); 
+    padding: 20px;
+    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    text-align: center;
+    gap: 10px;
+  }
+
+  /* Show links when burger is clicked */
+  .nav-links.open {
+    display: flex;
+    animation: fadeInDown 0.3s ease-out;
+  }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* Adds breathing room between logo and text */
+}
+
+.brand-group {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1; /* Keeps the text stack tight but clean */
+}
+
+.brand-text {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.5px;
+}
+
+.brand-subtext {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  letter-spacing: 1.5px; /* Spreads out the subtext for a more "terminal" feel */
+  text-transform: uppercase;
+}
+.nav-logo {
+  /* Change this value to make it bigger or smaller */
+  height: 60px; 
+  
+  /* Keep this as auto to maintain the logo's shape */
+  width: auto; 
+  
+  /* Optional: Add a transition for a smooth hover effect */
+  transition: transform 0.3s ease;
+}
+
+/* Optional: Make it slightly larger when you hover over it */
+.nav-logo:hover {
+  transform: scale(1.05);
+}
+

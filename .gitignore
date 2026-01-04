@@ -1,1 +1,5 @@
-venv/ 
+backend/venv/
+backend/database/*.db
+node_modules/
+.env
+__pycache__/

@@ -1,7 +1,7 @@
-// src/App.js
 import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from "react-router-dom";
 
+// Components & Pages
 import Home from "./pages/Home";
 import Register from "./components/Register";
 import FaceLogin from "./components/FaceLogin";
@@ -14,10 +14,18 @@ import "./App.css";
 
 function Navbar({ theme, toggleTheme }) {
   const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Automatically close mobile menu when navigating to a new page
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location]);
 
   return (
     <header className="navbar glass-nav">
       <div className="nav-container">
+        
+        {/* Branding Section */}
         <div className="nav-left">
           <img src="/gist-logo-new-197x197.png" alt="Logo" className="nav-logo" />
           <div className="brand-group">
@@ -26,7 +34,8 @@ function Navbar({ theme, toggleTheme }) {
           </div>
         </div>
 
-        <nav className="nav-links">
+        {/* Navigation Links */}
+        <nav className={`nav-links ${isMenuOpen ? "open" : ""}`}>
           {[
             { path: "/", label: "Home" },
             { path: "/register", label: "Enroll" },
@@ -45,11 +54,26 @@ function Navbar({ theme, toggleTheme }) {
           ))}
         </nav>
 
+        {/* Action Controls */}
         <div className="nav-right">
-          <button className="theme-toggle" onClick={toggleTheme} title="Toggle Appearance">
+          <button 
+            className="theme-toggle" 
+            onClick={toggleTheme} 
+            title="Toggle Appearance"
+            aria-label="Toggle Theme"
+          >
             {theme === "light" ? "🌙" : "☀️"}
           </button>
+          
+          <button 
+            className="menu-burger" 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle Menu"
+          >
+            {isMenuOpen ? "✕" : "☰"}
+          </button>
         </div>
+
       </div>
     </header>
   );
@@ -70,6 +94,7 @@ export default function App() {
       <Router>
         <div className="app-root">
           <Navbar theme={theme} toggleTheme={toggleTheme} />
+          
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Home />} />
