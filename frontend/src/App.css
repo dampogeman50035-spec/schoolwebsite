@@ -209,3 +209,41 @@ body {
   transform: scale(1.05);
 }
 
+.dashboard-wrapper {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.charts-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+  margin-top: 25px;
+}
+
+.chart-card {
+  padding: 25px;
+  border-radius: 20px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-inner {
+  flex-grow: 1;
+  position: relative;
+  margin-top: 15px;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  margin: 10px 0;
+}
