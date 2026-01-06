@@ -31,3 +31,4 @@ backend/venv/
 node_modules/
 
 .vercel
+.backend\database
