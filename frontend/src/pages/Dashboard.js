@@ -20,7 +20,7 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       // Fetching the new expanded data route
-      const res = await fetch("http://127.0.0.1:5000/dashboard-data");
+      const res = await fetch("https://keshia-hyperemic-jamison.ngrok-free.dev/dashboard-data");
       const json = await res.json();
       setData(json);
     } catch (err) {

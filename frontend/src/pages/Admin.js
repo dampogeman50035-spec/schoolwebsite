@@ -4,7 +4,7 @@ export default function Admin() {
   const [students, setStudents] = useState([]);
 
   const load = () => {
-    fetch("http://127.0.0.1:5000/students")
+    fetch("https://keshia-hyperemic-jamison.ngrok-free.dev/students")
       .then((r) => r.json())
       .then((data) => setStudents(data))
       .catch((err) => console.error(err));
@@ -23,7 +23,7 @@ export default function Admin() {
       return;
     try {
       const res = await fetch(
-        `http://127.0.0.1:5000/admin/delete_student/${id}`,
+        `https://keshia-hyperemic-jamison.ngrok-free.dev/admin/delete_student/${id}`,
         { method: "DELETE" }
       );
       const data = await res.json();

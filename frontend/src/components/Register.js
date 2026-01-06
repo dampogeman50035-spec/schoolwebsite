@@ -49,7 +49,7 @@ function Register() {
 
     try {
       // Remember to change this to your NGROK URL when deploying!
-      const res = await fetch("http://127.0.0.1:5000/register", {
+      const res = await fetch("https://keshia-hyperemic-jamison.ngrok-free.dev/register", {
         method: "POST",
         body: formData,
       });

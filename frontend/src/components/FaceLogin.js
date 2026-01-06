@@ -82,7 +82,7 @@ function FaceLogin() {
       formData.append("location", location);
 
       try {
-        const response = await fetch("http://127.0.0.1:5000/face_login", {
+        const response = await fetch("https://keshia-hyperemic-jamison.ngrok-free.dev/face_login", {
           method: "POST",
           body: formData,
         });

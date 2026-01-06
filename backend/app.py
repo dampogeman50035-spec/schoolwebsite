@@ -59,7 +59,11 @@ def save_encodings(data):
     with open(ENCODINGS_PATH, "wb") as f: pickle.dump(data, f)
 
 # --- ROUTES ---
+@app.route('/')
+def health_check():
+    return "BACKEND IS REACHABLE", 200
 
+    
 @app.route("/register", methods=["POST"])
 def register():
     student_id_num = request.form.get("student_id")
