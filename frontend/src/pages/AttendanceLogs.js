@@ -4,7 +4,7 @@ export default function AttendanceLogs() {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/attendance")
+    fetch("https://keshia-hyperemic-jamison.ngrok-free.dev/attendance")
       .then((r) => r.json())
       .then((data) => setLogs(data))
       .catch((err) => console.error(err));
