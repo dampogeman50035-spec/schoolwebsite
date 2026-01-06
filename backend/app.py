@@ -6,6 +6,7 @@ import os
 import pickle
 import cv2
 import numpy as np
+import time
 from datetime import datetime
 
 app = Flask(__name__)
@@ -14,6 +15,10 @@ CORS(app)
 # --- CONFIGURATION ---
 DB_PATH = "database/students.db"
 ENCODINGS_PATH = "database/encodings.pkl"
+COOLDOWN_SECONDS = 3600  # 1 hour prevention for duplicates
+
+# In-memory cache for duplicate check: { student_id_internal: timestamp }
+attendance_cooldown = {}
 
 if not os.path.exists("database"):
     os.makedirs("database")
@@ -22,8 +27,6 @@ if not os.path.exists("database"):
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
-    # Students Table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,8 +36,6 @@ def init_db():
             grade_level TEXT
         )
     """)
-    
-    # Attendance Table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS attendance (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,14 +45,6 @@ def init_db():
             timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
         )
     """)
-
-    # Ensure columns exist (Sync)
-    cur.execute("PRAGMA table_info(students)")
-    s_cols = [col[1] for col in cur.fetchall()]
-    for col_name in ["student_id_number", "section", "grade_level"]:
-        if col_name not in s_cols:
-            cur.execute(f"ALTER TABLE students ADD COLUMN {col_name} TEXT")
-
     conn.commit()
     conn.close()
 
@@ -59,14 +52,11 @@ init_db()
 
 # --- HELPER FUNCTIONS ---
 def load_encodings():
-    if not os.path.exists(ENCODINGS_PATH):
-        return []
-    with open(ENCODINGS_PATH, "rb") as f:
-        return pickle.load(f)
+    if not os.path.exists(ENCODINGS_PATH): return []
+    with open(ENCODINGS_PATH, "rb") as f: return pickle.load(f)
 
 def save_encodings(data):
-    with open(ENCODINGS_PATH, "wb") as f:
-        pickle.dump(data, f)
+    with open(ENCODINGS_PATH, "wb") as f: pickle.dump(data, f)
 
 # --- ROUTES ---
 
@@ -119,19 +109,17 @@ def face_login():
     if not file:
         return jsonify({"success": False, "message": "No image"}), 400
 
-    # 1. Convert file to numpy array and decode via OpenCV
+    # 1. Performance: Process image faster
     filestr = file.read()
     npimg = np.frombuffer(filestr, np.uint8)
     img = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-    
-    # Convert BGR (OpenCV default) to RGB (face_recognition default)
     rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # 2. Optimization: Resize to 1/4 size for 4x faster processing
+    # 2. Performance: Resize for speed
     small_frame = cv2.resize(rgb_img, (0, 0), fx=0.25, fy=0.25)
     
     # 3. Detect and Encode
-    face_locations = face_recognition.face_locations(small_frame)
+    face_locations = face_recognition.face_locations(small_frame, model="hog")
     encodings = face_recognition.face_encodings(small_frame, face_locations)
 
     if not encodings:
@@ -139,27 +127,45 @@ def face_login():
 
     input_encoding = encodings[0]
     students = load_encodings()
-
-    for student in students:
-        # Tolerance 0.5 is stricter and more accurate for automatic systems
-        match = face_recognition.compare_faces([student["encoding"]], input_encoding, tolerance=0.5)[0]
+    
+    if not students:
+        return jsonify({"success": False, "message": "No registered students"}), 200
         
-        if match:
-            local_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
-            cur.execute(
-                "INSERT INTO attendance (student_id_internal, name, location, timestamp) VALUES (?, ?, ?, ?)",
-                (student["id"], student["name"], location, local_now)
-            )
-            conn.commit()
-            conn.close()
-            return jsonify({
-                "success": True, 
-                "name": student["name"],
-                "student_id": student.get("student_id_num"),
-                "location": location
-            })
+    known_encodings = [s["encoding"] for s in students]
+    matches = face_recognition.compare_faces(known_encodings, input_encoding, tolerance=0.5)
+    
+    if True in matches:
+        match_index = matches.index(True)
+        student = students[match_index]
+        student_id = student["id"]
+        
+        # --- DUPLICATE PREVENTION LOGIC ---
+        current_time = time.time()
+        if student_id in attendance_cooldown:
+            if current_time - attendance_cooldown[student_id] < COOLDOWN_SECONDS:
+                return jsonify({
+                    "success": False, 
+                    "message": f"Already timed in: {student['name']}"
+                }), 200
+
+        # Update cooldown cache
+        attendance_cooldown[student_id] = current_time 
+        
+        local_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO attendance (student_id_internal, name, location, timestamp) VALUES (?, ?, ?, ?)",
+            (student_id, student["name"], location, local_now)
+        )
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True, 
+            "name": student["name"],
+            "student_id": student.get("student_id_num")
+        })
             
     return jsonify({"success": False, "message": "Unauthorized Face"})
 
@@ -183,19 +189,12 @@ def get_attendance():
 def dashboard_data():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    
-    # Attendance per location
     cur.execute("SELECT location, COUNT(*) FROM attendance GROUP BY location")
     location_data = dict(cur.fetchall())
-
-    # Attendance by hour
     cur.execute("SELECT strftime('%H:00', timestamp) as hour, COUNT(*) FROM attendance GROUP BY hour ORDER BY hour ASC")
     hour_data = dict(cur.fetchall())
-    
-    # Total student count
     cur.execute("SELECT COUNT(*) FROM students")
     total_students = cur.fetchone()[0]
-    
     conn.close()
     return jsonify({
         "locations": location_data,
@@ -213,5 +212,6 @@ def get_students():
     return jsonify([{"student_id": r[0], "name": r[1], "section": r[2], "grade": r[3]} for r in rows])
 
 if __name__ == "__main__":
-    # Ensure you have pip install opencv-python numpy face-recognition flask-cors
-    app.run(debug=True, port=5000)
+    # host='0.0.0.0' allows external access via ngrok
+    # debug=False is safer for deployment, but True is okay for testing
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
